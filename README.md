@@ -1,4 +1,4 @@
-# ProfileScan AI 🔍
+# DigitalPersona AI 🔍
 
 An AI-powered chatbot that scrapes a person's public LinkedIn (and optionally X/Twitter) profile using **Bright Data**, then lets you have a multi-turn conversation about them using **Groq (LLaMA 3 70B)** — all via pure HTTP, no SDKs.
 
