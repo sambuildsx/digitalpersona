@@ -10,7 +10,7 @@ An AI-powered chatbot that scrapes a person's public LinkedIn (and optionally X/
 |---|---|
 | Web Framework | Flask |
 | Data Scraping | Bright Data Datasets API |
-| LLM | Grok API → LLaMA 3 70B |
+| LLM | Grok API  |
 | Frontend | Vanilla HTML/CSS/JS |
 
 ---
