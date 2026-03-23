@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Digital Persona</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400&family=DM+Sans:wght@300;400;500&display=swap"/>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{
+      --bg:#080b10;--surface:#0e1318;--surface2:#131920;
+      --border:rgba(255,255,255,0.07);--accent:#00e5a0;--accent2:#0ea5e9;
+      --text:#e8edf3;--muted:#5a6a7a;--danger:#ff4d6d;
+      --sidebar-w:320px;--radius:14px;
+      --font-head:'Syne',sans-serif;--font-mono:'DM Mono',monospace;--font-body:'DM Sans',sans-serif;
+    }
+    html,body,#root{height:100%;overflow:hidden}
+    body{background:var(--bg);color:var(--text);font-family:var(--font-body);font-size:14px;line-height:1.6}
+    *{scrollbar-width:thin;scrollbar-color:var(--border) transparent}
+    *::-webkit-scrollbar{width:4px}
+    *::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
+    @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+    @keyframes slidein{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+    @keyframes fadein{from{opacity:0}to{opacity:1}}
+    @keyframes bounce{0%,80%,100%{transform:translateY(0)}40%{transform:translateY(-6px)}}
+    @keyframes spin{to{transform:rotate(360deg)}}
+  </style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useRef, useCallback } = React;
+
+/* ── STYLES as JS objects ──────────────────────────────────────────── */
+const S = {
+  app: {
+    display:'flex', height:'100vh', position:'relative', zIndex:1,
+    background:'#080b10',
+  },
+  bgGrid: {
+    position:'fixed', inset:0, pointerEvents:'none', zIndex:0,
+    backgroundImage:'linear-gradient(rgba(0,229,160,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(0,229,160,0.03) 1px,transparent 1px)',
+    backgroundSize:'48px 48px',
+  },
+  bgGlow: {
+    position:'fixed', top:-200, left:-200, width:700, height:700,
+    background:'radial-gradient(circle,rgba(0,229,160,0.07) 0%,transparent 70%)',
+    pointerEvents:'none', zIndex:0,
+  },
+  sidebar: {
+    width:320, minWidth:320, background:'#0e1318',
+    borderRight:'1px solid rgba(255,255,255,0.07)',
+    display:'flex', flexDirection:'column', overflowY:'auto', overflowX:'hidden',
+    position:'relative', zIndex:2,
+  },
+  logo: {
+    padding:'24px 22px 18px', display:'flex', alignItems:'center', gap:10,
+    borderBottom:'1px solid rgba(255,255,255,0.07)',
+    fontFamily:"'Syne',sans-serif", fontSize:18, fontWeight:800, letterSpacing:'-0.5px',
+    flexShrink:0,
+  },
+  logoMark: { fontSize:22, color:'#00e5a0', animation:'pulse 3s ease-in-out infinite' },
+  inputPanel: {
+    padding:22, display:'flex', flexDirection:'column', gap:14,
+    borderBottom:'1px solid rgba(255,255,255,0.07)', flexShrink:0,
+  },
+  panelLabel: {
+    fontFamily:"'DM Mono',monospace", fontSize:10, letterSpacing:2,
+    color:'#5a6a7a', marginBottom:2,
+  },
+  fieldWrap: { display:'flex', flexDirection:'column', gap:6 },
+  fieldLabel: { fontSize:12, fontWeight:500, color:'#99aabb' },
+  input: {
+    background:'#131920', border:'1px solid rgba(255,255,255,0.07)',
+    borderRadius:10, padding:'10px 14px', color:'#e8edf3',
+    fontFamily:"'DM Mono',monospace", fontSize:12, outline:'none',
+    width:'100%', transition:'border-color .2s',
+  },
+  btnScan: {
+    display:'flex', alignItems:'center', justifyContent:'space-between',
+    background:'#00e5a0', color:'#040d08', border:'none', borderRadius:10,
+    padding:'12px 18px', fontFamily:"'Syne',sans-serif", fontSize:14,
+    fontWeight:700, cursor:'pointer', transition:'opacity .2s',
+  },
+  profileCard: {
+    padding:'20px 22px', borderBottom:'1px solid rgba(255,255,255,0.07)',
+    display:'flex', flexDirection:'column', gap:10, flexShrink:0,
+    animation:'slidein .4s ease',
+  },
+  profilePic: {
+    width:60, height:60, borderRadius:'50%', objectFit:'cover',
+    border:'2px solid #00e5a0', background:'#131920',
+  },
+  profileName: { fontFamily:"'Syne',sans-serif", fontSize:16, fontWeight:700, lineHeight:1.2 },
+  profileSub: { fontSize:12, color:'#5a6a7a', lineHeight:1.4 },
+  badgeRow: { display:'flex', gap:6, flexWrap:'wrap', marginTop:2 },
+  badge: (blue) => ({
+    fontFamily:"'DM Mono',monospace", fontSize:10, padding:'3px 8px',
+    borderRadius:20, border:`1px solid ${blue?'#0ea5e9':'#00e5a0'}`,
+    color: blue?'#0ea5e9':'#00e5a0',
+  }),
+  btnReset: {
+    background:'transparent', border:'1px solid rgba(255,255,255,0.07)',
+    borderRadius:8, color:'#5a6a7a', padding:'7px 12px', fontSize:12,
+    cursor:'pointer', fontFamily:"'DM Sans',sans-serif", alignSelf:'flex-start',
+    transition:'border-color .2s, color .2s',
+  },
+  promptsSection: {
+    padding:'18px 22px', display:'flex', flexDirection:'column', gap:10, flexShrink:0,
+  },
+  chip: {
+    background:'#131920', border:'1px solid rgba(255,255,255,0.07)',
+    borderRadius:8, padding:'9px 12px', fontSize:12, cursor:'pointer',
+    color:'#99aabb', textAlign:'left', fontFamily:"'DM Sans',sans-serif",
+    lineHeight:1.4, transition:'border-color .2s, color .2s',
+  },
+  sidebarFooter: {
+    marginTop:'auto', padding:'16px 22px',
+    fontFamily:"'DM Mono',monospace", fontSize:10, color:'#5a6a7a',
+    borderTop:'1px solid rgba(255,255,255,0.07)', flexShrink:0,
+  },
+  chatArea: { flex:1, display:'flex', flexDirection:'column', overflow:'hidden', position:'relative', zIndex:2 },
+  emptyState: {
+    flex:1, display:'flex', flexDirection:'column', alignItems:'center',
+    justifyContent:'center', gap:16, textAlign:'center', padding:40,
+    animation:'fadein .6s',
+  },
+  messages: { flex:1, overflowY:'auto', padding:'28px 32px', display:'flex', flexDirection:'column', gap:20 },
+  msgWrap: (isUser) => ({
+    display:'flex', gap:14, animation:'slidein .3s ease',
+    maxWidth:780, flexDirection: isUser ? 'row-reverse' : 'row',
+    alignSelf: isUser ? 'flex-end' : 'flex-start',
+  }),
+  avatar: (isUser) => ({
+    width:34, height:34, borderRadius:'50%', display:'flex',
+    alignItems:'center', justifyContent:'center', fontSize:13,
+    flexShrink:0, fontFamily:"'DM Mono',monospace", fontWeight:600,
+    background: isUser ? 'rgba(14,165,233,0.12)' : 'rgba(0,229,160,0.12)',
+    border: `1px solid ${isUser ? 'rgba(14,165,233,0.3)' : 'rgba(0,229,160,0.3)'}`,
+    color: isUser ? '#0ea5e9' : '#00e5a0',
+  }),
+  bubble: (isUser) => ({
+    padding:'13px 17px', borderRadius:14, lineHeight:1.65, fontSize:14,
+    maxWidth:'calc(100% - 50px)',
+    background: isUser ? '#131920' : '#0e1318',
+    border: `1px solid ${isUser ? 'rgba(14,165,233,0.2)' : 'rgba(255,255,255,0.07)'}`,
+    borderTopLeftRadius: isUser ? 14 : 4,
+    borderTopRightRadius: isUser ? 4 : 14,
+    color: isUser ? '#c8ddf0' : '#e8edf3',
+  }),
+  typingDot: (i) => ({
+    width:6, height:6, background:'#00e5a0', borderRadius:'50%', opacity:.5,
+    animation:`bounce 1.2s ease-in-out ${i*0.2}s infinite`,
+  }),
+  inputBar: {
+    padding:'14px 24px 18px', borderTop:'1px solid rgba(255,255,255,0.07)',
+    display:'flex', gap:10, alignItems:'flex-end',
+    background:'#0e1318', flexShrink:0,
+  },
+  textarea: {
+    flex:1, background:'#131920', border:'1px solid rgba(255,255,255,0.07)',
+    borderRadius:12, padding:'11px 15px', color:'#e8edf3',
+    fontFamily:"'DM Sans',sans-serif", fontSize:14, lineHeight:1.5,
+    resize:'none', outline:'none', maxHeight:160, overflowY:'auto',
+    transition:'border-color .2s',
+  },
+  sendBtn: (disabled) => ({
+    width:42, height:42, borderRadius:12, background: disabled ? 'rgba(0,229,160,0.3)' : '#00e5a0',
+    border:'none', cursor: disabled ? 'not-allowed' : 'pointer',
+    display:'flex', alignItems:'center', justifyContent:'center',
+    transition:'opacity .2s', flexShrink:0,
+  }),
+};
+
+/* ── Markdown-lite renderer ─────────────────────────────────────────── */
+function renderMarkdown(text) {
+  const html = text
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/\*\*(.+?)\*\*/g,'<strong style="color:#00e5a0;font-weight:600">$1</strong>')
+    .replace(/\*(.+?)\*/g,'<em style="color:#99aabb">$1</em>')
+    .replace(/`(.+?)`/g,'<code style="font-family:\'DM Mono\',monospace;background:rgba(255,255,255,0.06);padding:1px 5px;border-radius:4px;font-size:12px">$1</code>')
+    .replace(/^### (.+)$/gm,'<strong style="font-size:15px;display:block;margin:6px 0 2px">$1</strong>')
+    .replace(/^## (.+)$/gm,'<strong style="font-size:16px;display:block;margin:8px 0 2px">$1</strong>')
+    .replace(/^# (.+)$/gm,'<strong style="font-size:17px;display:block;margin:10px 0 2px">$1</strong>')
+    .replace(/^\s*[-•]\s+(.+)$/gm,'<li style="margin:3px 0;padding-left:4px">$1</li>')
+    .replace(/(<li[\s\S]+?<\/li>)/g,'<ul style="padding-left:18px;margin:6px 0">$1</ul>')
+    .replace(/<\/ul>\s*<ul[^>]*>/g,'')
+    .replace(/\n{2,}/g,'<br/><br/>')
+    .replace(/\n/g,'<br/>');
+  return html;
+}
+
+/* ── PROMPTS ─────────────────────────────────────────────────────────── */
+const PROMPTS = [
+  "What are this person's core strengths?",
+  "Summarize their career trajectory.",
+  "What was their most recent career pivot?",
+  "What industries have they worked in?",
+  "What skills make them stand out?",
+  "What do their recent posts reveal about their interests?",
+];
+
+/* ── STATUS BAR ─────────────────────────────────────────────────────── */
+function StatusBar({ msg, isError }) {
+  if (!msg) return null;
+  return (
+    <div style={{
+      fontFamily:"'DM Mono',monospace", fontSize:11, minHeight:16,
+      color: isError ? '#ff4d6d' : '#00e5a0',
+    }}>
+      {msg}
+    </div>
+  );
+}
+
+/* ── TYPING INDICATOR ───────────────────────────────────────────────── */
+function TypingIndicator() {
+  return (
+    <div style={{ display:'flex', gap:5, padding:'4px 32px', alignItems:'center' }}>
+      <div style={S.avatar(false)}>⬡</div>
+      <div style={{ display:'flex', gap:5, alignItems:'center', padding:'10px 14px', background:'#0e1318', border:'1px solid rgba(255,255,255,0.07)', borderRadius:14, borderTopLeftRadius:4 }}>
+        {[0,1,2].map(i => <div key={i} style={S.typingDot(i)}/>)}
+      </div>
+    </div>
+  );
+}
+
+/* ── MESSAGE ────────────────────────────────────────────────────────── */
+function Message({ role, text }) {
+  const isUser = role === 'user';
+  return (
+    <div style={S.msgWrap(isUser)}>
+      <div style={S.avatar(isUser)}>{isUser ? 'U' : '⬡'}</div>
+      <div style={S.bubble(isUser)} dangerouslySetInnerHTML={{ __html: renderMarkdown(text) }}/>
+    </div>
+  );
+}
+
+/* ── EMPTY STATE ────────────────────────────────────────────────────── */
+function EmptyState() {
+  return (
+    <div style={S.emptyState}>
+      <div style={{ fontSize:56, color:'#00e5a0', opacity:.3, animation:'pulse 4s ease-in-out infinite' }}>⬡</div>
+      <h1 style={{ fontFamily:"'Syne',sans-serif", fontSize:36, fontWeight:800, lineHeight:1.15, letterSpacing:-1 }}>
+        Explore anyone's<br/>
+        <span style={{
+          background:'linear-gradient(90deg,#00e5a0,#0ea5e9)',
+          WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent',
+        }}>digital footprint</span>
+      </h1>
+      <p style={{ color:'#5a6a7a', fontSize:15, lineHeight:1.7 }}>
+        Paste a LinkedIn URL on the left to begin.<br/>
+        Ask anything about their career, skills, or public presence.
+      </p>
+    </div>
+  );
+}
+
+/* ── SIDEBAR INPUT PANEL ────────────────────────────────────────────── */
+function InputPanel({ onLoad }) {
+  const [linkedinUrl, setLinkedinUrl] = useState('');
+  const [twitterHandle, setTwitterHandle] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [status, setStatus] = useState({ msg:'', isError:false });
+
+  async function handleLoad() {
+    if (!linkedinUrl.trim()) { setStatus({ msg:'Please enter a LinkedIn URL.', isError:true }); return; }
+    setStatus({ msg:'⟳ Triggering Bright Data scrape…', isError:false });
+    setLoading(true);
+    try {
+      const res  = await fetch('/load_profile', {
+        method:'POST', headers:{ 'Content-Type':'application/json' },
+        body: JSON.stringify({ linkedin_url: linkedinUrl.trim(), twitter_handle: twitterHandle.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok || data.error) { setStatus({ msg: data.error || 'Unknown error.', isError:true }); setLoading(false); return; }
+      setStatus({ msg:'', isError:false });
+      onLoad(data);
+    } catch(e) {
+      setStatus({ msg:'Network error: ' + e.message, isError:true });
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div style={S.inputPanel}>
+      <div style={S.panelLabel}>SCAN A PROFILE</div>
+
+      <div style={S.fieldWrap}>
+        <label style={S.fieldLabel}>
+          LinkedIn URL <span style={{ color:'#00e5a0' }}>*</span>
+        </label>
+        <input
+          style={S.input}
+          type="url"
+          placeholder="https://linkedin.com/in/username"
+          value={linkedinUrl}
+          onChange={e => setLinkedinUrl(e.target.value)}
+          onKeyDown={e => e.key === 'Enter' && handleLoad()}
+          onFocus={e => e.target.style.borderColor='#00e5a0'}
+          onBlur={e => e.target.style.borderColor='rgba(255,255,255,0.07)'}
+        />
+      </div>
+
+      <div style={S.fieldWrap}>
+        <label style={S.fieldLabel}>
+          X (Twitter) Handle
+          <span style={{ fontSize:10, fontFamily:"'DM Mono',monospace", color:'#5a6a7a', marginLeft:6 }}>optional</span>
+        </label>
+        <input
+          style={S.input}
+          type="text"
+          placeholder="@username"
+          value={twitterHandle}
+          onChange={e => setTwitterHandle(e.target.value)}
+          onFocus={e => e.target.style.borderColor='#00e5a0'}
+          onBlur={e => e.target.style.borderColor='rgba(255,255,255,0.07)'}
+        />
+      </div>
+
+      <button
+        style={{ ...S.btnScan, opacity: loading ? .5 : 1, cursor: loading ? 'not-allowed' : 'pointer' }}
+        disabled={loading}
+        onClick={handleLoad}
+      >
+        <span>{loading ? 'Scanning…' : 'Scan Profile'}</span>
+        <span style={{ fontSize:18 }}>{loading ? '⟳' : '→'}</span>
+      </button>
+
+      <StatusBar {...status} />
+    </div>
+  );
+}
+
+/* PROFILE CARD*/
+function ProfileCard({ profile, onReset }) {
+  const [hoverReset, setHoverReset] = useState(false);
+  return (
+    <div style={S.profileCard}>
+      {profile.pic && <img src={profile.pic} alt="" style={S.profilePic} onError={e => e.target.style.display='none'}/>}
+      <div style={S.profileName}>{profile.name}</div>
+      {profile.headline && <div style={S.profileSub}>{profile.headline}</div>}
+      <div style={S.badgeRow}>
+        <span style={S.badge(false)}>LinkedIn</span>
+        {profile.has_twitter && <span style={S.badge(true)}>X / Twitter</span>}
+      </div>
+      <button
+        style={{ ...S.btnReset, borderColor: hoverReset ? '#ff4d6d' : 'rgba(255,255,255,0.07)', color: hoverReset ? '#ff4d6d' : '#5a6a7a' }}
+        onMouseEnter={() => setHoverReset(true)}
+        onMouseLeave={() => setHoverReset(false)}
+        onClick={onReset}
+      >↺ New Scan</button>
+    </div>
+  );
+}
+
+/* ── QUICK PROMPTS ──────────────────────────────────────────────────── */
+function QuickPrompts({ onSelect }) {
+  const [hovered, setHovered] = useState(null);
+  return (
+    <div style={S.promptsSection}>
+      <div style={S.panelLabel}>QUICK QUESTIONS</div>
+      <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
+        {PROMPTS.map((p,i) => (
+          <button
+            key={i}
+            style={{ ...S.chip, borderColor: hovered===i ? '#00e5a0' : 'rgba(255,255,255,0.07)', color: hovered===i ? '#e8edf3' : '#99aabb', background: hovered===i ? 'rgba(0,229,160,0.05)' : '#131920' }}
+            onMouseEnter={() => setHovered(i)}
+            onMouseLeave={() => setHovered(null)}
+            onClick={() => onSelect(p)}
+          >{p}</button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ── CHAT INPUT BAR ─────────────────────────────────────────────────── */
+function ChatInputBar({ onSend, disabled }) {
+  const [text, setText] = useState('');
+  const taRef = useRef(null);
+
+  function handleSend() {
+    const msg = text.trim();
+    if (!msg || disabled) return;
+    onSend(msg);
+    setText('');
+    if (taRef.current) { taRef.current.style.height = 'auto'; }
+  }
+
+  function handleKey(e) {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }
+  }
+
+  function handleInput(e) {
+    setText(e.target.value);
+    e.target.style.height = 'auto';
+    e.target.style.height = Math.min(e.target.scrollHeight, 160) + 'px';
+  }
+
+  return (
+    <div style={S.inputBar}>
+      <textarea
+        ref={taRef}
+        style={{ ...S.textarea, borderColor: disabled ? 'rgba(255,255,255,0.07)' : undefined, opacity: disabled ? .6 : 1 }}
+        placeholder="Ask anything about this profile…"
+        value={text}
+        rows={1}
+        disabled={disabled}
+        onChange={handleInput}
+        onKeyDown={handleKey}
+        onFocus={e => !disabled && (e.target.style.borderColor='#00e5a0')}
+        onBlur={e => e.target.style.borderColor='rgba(255,255,255,0.07)'}
+      />
+      <button style={S.sendBtn(disabled || !text.trim())} disabled={disabled || !text.trim()} onClick={handleSend}>
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#040d08" strokeWidth="2">
+          <path d="M22 2L11 13M22 2L15 22L11 13L2 9L22 2Z"/>
+        </svg>
+      </button>
+    </div>
+  );
+}
+
+/* ── MAIN APP ───────────────────────────────────────────────────────── */
+function App() {
+  const [profile, setProfile] = useState(null);       // loaded profile info
+  const [messages, setMessages] = useState([]);        // chat history
+  const [thinking, setThinking] = useState(false);     // typing indicator
+  const messagesEndRef = useRef(null);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior:'smooth' });
+  }, [messages, thinking]);
+
+  async function handleProfileLoad(data) {
+    setProfile(data);
+    setMessages([{
+      role:'bot',
+      text:`✅ Profile loaded for **${data.name}**${data.has_twitter ? ' (LinkedIn + X)' : ' (LinkedIn)'}.\n\nAsk me anything about their career, skills, interests, or public activity!`,
+    }]);
+  }
+
+  async function handleReset() {
+    await fetch('/reset', { method:'POST' });
+    setProfile(null);
+    setMessages([]);
+  }
+
+  async function handleSend(text) {
+    setMessages(prev => [...prev, { role:'user', text }]);
+    setThinking(true);
+    try {
+      const res  = await fetch('/chat', {
+        method:'POST', headers:{ 'Content-Type':'application/json' },
+        body: JSON.stringify({ message: text }),
+      });
+      const data = await res.json();
+      setThinking(false);
+      setMessages(prev => [...prev, { role:'bot', text: data.error ? '⚠️ ' + data.error : data.reply }]);
+    } catch(e) {
+      setThinking(false);
+      setMessages(prev => [...prev, { role:'bot', text:'⚠️ Network error: ' + e.message }]);
+    }
+  }
+
+  return (
+    <div style={S.app}>
+      <div style={S.bgGrid}/>
+      <div style={S.bgGlow}/>
+
+      {/* SIDEBAR */}
+      <aside style={S.sidebar}>
+        <div style={S.logo}>
+          <span style={S.logoMark}>⬡</span>
+          <span style={{ fontFamily:"'Syne',sans-serif" }}>
+            Digital Persona<em style={{ color:'#00e5a0', fontStyle:'normal' }}>AI</em>
+          </span>
+        </div>
+
+        {!profile
+          ? <InputPanel onLoad={handleProfileLoad}/>
+          : <>
+              <ProfileCard profile={profile} onReset={handleReset}/>
+              <QuickPrompts onSelect={text => handleSend(text)}/>
+            </>
+        }
+
+
+      </aside>
+
+      {/* CHAT AREA */}
+      <main style={S.chatArea}>
+        {messages.length === 0 && !profile
+          ? <EmptyState/>
+          : (
+            <div style={S.messages}>
+              {messages.map((m, i) => <Message key={i} role={m.role} text={m.text}/>)}
+              {thinking && <TypingIndicator/>}
+              <div ref={messagesEndRef}/>
+            </div>
+          )
+        }
+
+        {profile && (
+          <ChatInputBar onSend={handleSend} disabled={thinking}/>
+        )}
+      </main>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>
