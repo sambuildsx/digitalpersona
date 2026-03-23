@@ -1,6 +1,6 @@
 # DigitalPersona AI 🔍
 
-An AI-powered chatbot that scrapes a person's public LinkedIn (and optionally X/Twitter) profile using **Bright Data**, then lets you have a multi-turn conversation about them using **Groq (LLaMA 3 70B)** — all via pure HTTP, no SDKs.
+An AI-powered chatbot that scrapes a person's public LinkedIn (and optionally X/Twitter) profile using **Bright Data**, then lets you have a multi-turn conversation about them using Groq.
 
 ---
 
@@ -10,7 +10,7 @@ An AI-powered chatbot that scrapes a person's public LinkedIn (and optionally X/
 |---|---|
 | Web Framework | Flask |
 | Data Scraping | Bright Data Datasets API |
-| LLM | Groq API → LLaMA 3 70B |
+| LLM | Grok API → LLaMA 3 70B |
 | Frontend | Vanilla HTML/CSS/JS |
 
 ---
@@ -64,9 +64,7 @@ linkedin-chatbot/
 ├── requirements.txt
 ├── templates/
 │   └── index.html          # Single-page UI
-└── static/
-    ├── css/style.css       # Dark sci-fi theme
-    └── js/app.js           # Chat logic
+
 ```
 
 ---
@@ -119,7 +117,3 @@ Streamed reply rendered in chat UI
 
 
 
-- Bright Data scraping takes **10–60 seconds** depending on queue.
-- Groq LLaMA 3 70B is extremely fast (~1–2s responses).
-- Session data is stored server-side; refresh clears the chat.
-- The app keeps the **last 10 conversation turns** to stay within Groq's context limits.
