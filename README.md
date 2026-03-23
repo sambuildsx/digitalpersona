@@ -117,21 +117,7 @@ Streamed reply rendered in chat UI
 
 ---
 
-## Deployment (Optional)
 
-**Streamlit Cloud** — not applicable (Flask app)
-
-**Railway / Render:**
-```bash
-# Procfile
-web: python app.py
-```
-
-**Vercel** — use `vercel.json` with Flask WSGI adapter.
-
----
-
-## Notes
 
 - Bright Data scraping takes **10–60 seconds** depending on queue.
 - Groq LLaMA 3 70B is extremely fast (~1–2s responses).
