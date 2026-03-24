@@ -8,8 +8,8 @@ app = Flask(__name__)
 app.secret_key = "linkedin-chatbot-secret-2024"
 
 # ─── API KEYS ─────────────────────────────────────────────────────────────────
-BRIGHT_DATA_API_KEY = "92c21c00-9e00-4cb1-a2a2-90fc2df60c17"
-GROQ_API_KEY        = "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"
+BRIGHT_DATA_API_KEY = "ENTER_YOUR_API_KEY"
+GROQ_API_KEY        = "ENTER_YOUR_API_KEY"
 
 # ─── Bright Data ──────────────────────────────────────────────────────────────
 BD_TRIGGER_URL  = "https://api.brightdata.com/datasets/v3/trigger"
